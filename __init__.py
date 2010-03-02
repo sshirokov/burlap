@@ -108,5 +108,28 @@ def activate_release(release=None):
         run("ln -s releases/%s current_stage" % release)
         run("mv -T current_stage current")
     with cd(path_subdir("shared")):
-        run("echo %s > current.txt" % release)
+        run("echo -n %s > current.txt" % release)
 activate = activate_release
+
+@needs_host
+def available_releases():
+    with hide("everything"): r = run("ls -c1 %s" % path_subdir("releases"))
+    return r.split("\n")
+
+@needs_host
+def current_release():
+    with hide("everything"): r = run("cat %s" % path_subdir("shared", "current.txt"))
+    return r
+
+@needs_host
+def rollback(n=1):
+    '''
+    Rollback to the previous deployment
+    '''
+    current = current_release()
+    available =  available_releases()
+    previous = available[available.index(current) + 1:]
+    if previous:
+        previous = previous[0]
+        activate_release(previous)
+    else: abort("No previous release available!")
