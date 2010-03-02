@@ -91,3 +91,5 @@ def activate_release(release=None):
         run("rm -f current_stage")
         run("ln -s releases/%s current_stage" % release)
         run("mv -T current_stage current")
+    with cd(path_subdir("shared")):
+        run("echo %s > current.txt" % release)
