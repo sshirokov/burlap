@@ -51,6 +51,7 @@ def send_release(release=None):
         release = env.last_release
     put("/tmp/%s.tgz" % release, "/tmp/%s.tgz" % release)
     env.last_sent_release = release
+    clean_release(release)
 
 @needs_host
 def unpack_release(release=None):
@@ -70,13 +71,16 @@ def clean_release(release=None):
         release = env.pop('last_release')
     
     with settings(warn_only=True):
-        local("rm /tmp/%s.tgz" % release)
+        with hide("warnings"): local("rm /tmp/%s.tgz" % release)
 
 @needs_host
 def clean_remote_release(release=None):
-    pass
-
+    if not release:
+        require("last_sent_release", provided_by=["send_release"])
+        release = env.pop('last_sent_release')
+    with hide("warnings"): run("rm /tmp/%s.tgz" % release)
 
 @needs_host
 def activate_release(release=None):
+    run("echo Will activate release...")
     pass
