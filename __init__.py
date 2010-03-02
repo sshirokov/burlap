@@ -1,3 +1,4 @@
+from datetime import datetime
 from fabric.api import *
 from fabric.network import needs_host
 from fabric.contrib.files import exists
@@ -12,19 +13,20 @@ def with_roles(*roles_then_funcs):
     required_roles, functions = reduce(role_or_function, roles_then_funcs, ([], []))
     map(lambda func: bind_roles(required_roles, func), functions)
 
-def path_subdir(d):
-    return "%s/%s" % (env.path, d)
+def path_subdir(*d):
+    return "%s/%s" % (env.path, "/".join(d))
+
+def add_path_subdir(*d):
+    run("mkdir -p %s" % path_subdir(*d))
+    return path_subdir(*d)
     
 @needs_host
+@runs_once
 def setup():
     '''
     Create all the required directories used by a deployment
     '''
     require("path")
-    
-    def add_path_subdir(d):
-        run("mkdir -p %s" % path_subdir(d))
-        return path_subdir(d)
     
     def is_missing_path_subdir(d):
         return not exists(path_subdir(d))
@@ -33,12 +35,47 @@ def setup():
                   filter(is_missing_path_subdir, ["releases", "shared"]))
     if not created: print "All requirements seem to be met!"
 
-def build_release():
-    pass
+@runs_once
+def build_release(release=None):
+    '''
+    Build a release on the local side
+    '''
+    env.last_release = release or ("fab.release.%s" % (datetime.utcnow().strftime("%Y_%m_%d_%H-%M-%S")))
+    tgz = "/tmp/%s.tgz" % env.last_release
+    local("tar czf %s ." % tgz, capture=False)
 
 @needs_host
-def send_release(name=None):
+def send_release(release=None):
+    if not release:
+        require("last_release", provided_by=["build_release"])
+        release = env.last_release
+    put("/tmp/%s.tgz" % release, "/tmp/%s.tgz" % release)
+    env.last_sent_release = release
+
+@needs_host
+def unpack_release(release=None):
+    setup() #Assure we have somewhere to unpack
+    if not release:
+        require("last_sent_release", provided_by=["send_release"])
+        release = env.pop('last_sent_release')
+    add_path_subdir("releases", release)
+    with cd(path_subdir("releases", release)):
+        run("tar zxf /tmp/%s.tgz" % release)
+        clean_remote_release(release)
+
+
+def clean_release(release=None):
+    if not release:
+        require("last_release", provided_by=["build_release"])
+        release = env.pop('last_release')
+    
+    with settings(warn_only=True):
+        local("rm /tmp/%s.tgz" % release)
+
+@needs_host
+def clean_remote_release(release=None):
     pass
+
 
 @needs_host
 def activate_release(release=None):
