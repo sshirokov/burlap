@@ -35,6 +35,19 @@ def setup():
                   filter(is_missing_path_subdir, ["releases", "shared"]))
     if not created: print "All requirements seem to be met!"
 
+@needs_host
+def deploy(release=None):
+    '''
+    Deploy the current snapshot
+    '''
+    setup()
+    build_release(release)
+    send_release(release)
+    unpack_release(release)
+    activate_release(release)
+    clean_release(release)
+    
+
 @runs_once
 def build_release(release=None):
     '''
@@ -83,6 +96,9 @@ def clean_remote_release(release=None):
 
 @needs_host
 def activate_release(release=None):
+    '''
+    Activate the last, or the given release
+    '''
     if not release:
         require("last_remote_release", provided_by=["send_release"])
         release = env.last_remote_release
@@ -93,3 +109,4 @@ def activate_release(release=None):
         run("mv -T current_stage current")
     with cd(path_subdir("shared")):
         run("echo %s > current.txt" % release)
+activate = activate_release
