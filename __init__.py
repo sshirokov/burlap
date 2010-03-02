@@ -63,6 +63,7 @@ def unpack_release(release=None):
     with cd(path_subdir("releases", release)):
         run("tar zxf /tmp/%s.tgz" % release)
         clean_remote_release(release)
+    env.last_remote_release = release
 
 
 def clean_release(release=None):
@@ -82,5 +83,11 @@ def clean_remote_release(release=None):
 
 @needs_host
 def activate_release(release=None):
-    run("echo Will activate release...")
-    pass
+    if not release:
+        require("last_remote_release", provided_by=["send_release"])
+        release = env.last_remote_release
+
+    with cd(env.path):
+        run("rm -f current_stage")
+        run("ln -s releases/%s current_stage" % release)
+        run("mv -T current_stage current")
