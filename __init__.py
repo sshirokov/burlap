@@ -45,6 +45,7 @@ def deploy(release=None):
     send_release(release)
     unpack_release(release)
     activate_release(release)
+    prune_releases()
     clean_release(release)
     
 
@@ -120,6 +121,21 @@ def available_releases():
 def current_release():
     with hide("everything"): r = run("cat %s" % path_subdir("shared", "current.txt"))
     return r
+
+@needs_host
+def prune_releases(keep=None):
+    '''
+    Keep a number of lastest releases (default of five) removing the rest
+    '''
+    if not keep: keep = env.get('keep', 5)
+    keep = int(keep)
+    available = available_releases()
+    if keep > len(available) or keep < 1: abort("Trying to keep more than we have or none (%d/%d)" % (keep, len(available)))
+    print "Keeping %d of %d releases." % (keep, len(available))
+    remove = set(available) - set(available[:keep])
+    def remove_release(release):
+        run("rm -r %s" % path_subdir("releases", release))
+    map(remove_release, remove)
 
 @needs_host
 def rollback(n=1):
